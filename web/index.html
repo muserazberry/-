@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>경기도 조례 제·개정 추천</title>
+  <style>
+    body { font-family: -apple-system, "Malgun Gothic", sans-serif; margin: 0; background: #f5f6f8; color: #1c2128; }
+    header { background: #0b3d91; color: #fff; padding: 18px 24px; }
+    header h1 { margin: 0; font-size: 18px; }
+    header p { margin: 4px 0 0; font-size: 13px; opacity: .85; }
+    .toolbar { padding: 14px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: #fff; border-bottom: 1px solid #e1e4e8; }
+    .toolbar label { font-size: 13px; }
+    button { background: #0b3d91; color: #fff; border: 0; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    button:disabled { opacity: .5; cursor: default; }
+    .stats { padding: 0 24px 12px; font-size: 13px; color: #444; }
+    .stats b { color: #0b3d91; }
+    .overview { padding: 16px 24px 4px; }
+    .overview h2 { margin: 0 0 10px; font-size: 14px; color: #1c2128; }
+    .stats-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .stat-card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 14px 18px; flex: 1; min-width: 120px; }
+    .stat-card .num { font-size: 26px; font-weight: 800; color: #0b3d91; line-height: 1.1; }
+    .stat-card .lbl { font-size: 12px; color: #5a6b7b; margin-top: 4px; }
+    table { width: calc(100% - 48px); margin: 0 24px 32px; border-collapse: collapse; background: #fff; font-size: 13px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eef0f2; vertical-align: top; }
+    th { background: #f0f2f5; position: sticky; top: 0; }
+    .gap { color: #c0392b; font-weight: 600; }
+    .weak { color: #b9770e; font-weight: 600; }
+    .ref { color: #5a6b7b; font-weight: 600; }
+    .ok { color: #2e7d32; }
+    .score { color: #555; font-size: 12px; }
+    .tag { display: inline-block; background: #eef; border-radius: 4px; padding: 1px 6px; margin: 1px 2px; font-size: 12px; }
+    a { color: #0b3d91; }
+    .msg { padding: 24px; color: #c0392b; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>경기도 조례 제·개정 추천 시스템</h1>
+    <p>정책·입법 신호 → 경기도 조례 미반영 갭 탐지</p>
+  </header>
+
+  <div class="toolbar">
+    <label>출처 <select id="source"></select></label>
+    <label id="lblAge">국회 대수 <input id="age" type="text" value="22" size="4" /></label>
+    <label>표본 수 <input id="sample" type="number" value="100" min="1" max="100" /></label>
+    <label id="lblPassed"><input id="onlyPassed" type="checkbox" checked /> 통과 법률안만</label>
+    <label id="lblDeleg"><input id="withDeleg" type="checkbox" checked /> 위임조항 분석</label>
+    <label><input id="onlyGap" type="checkbox" /> 추천만(제정·개정)</label>
+    <label id="lblStrong"><input id="onlyStrong" type="checkbox" /> 고신뢰(위임○)만</label>
+    <button id="run">분석 실행</button>
+  </div>
+
+  <div class="overview" id="overview" style="display:none">
+    <h2>📊 전체 현황</h2>
+    <div class="stats-row" id="statsRow"></div>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div id="result"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let lastData = null;
+
+    async function loadSources() {
+      try {
+        const list = await (await fetch("/api/sources")).json();
+        $("source").innerHTML = list
+          .map((s) => `<option value="${s.key}">${s.label}</option>`).join("");
+      } catch (e) { /* 무시: 기본 출처 사용 */ }
+      updateControls();
+    }
+
+    // 선택한 출처에 해당하는 컨트롤만 노출 (국회 전용 옵션은 다른 출처에서 숨김)
+    function updateControls() {
+      const src = $("source").value;
+      const isAssembly = src === "assembly";
+      const usesDeleg = src === "assembly" || src === "lawmaking";  // 법령 본문 분석 출처
+      $("lblAge").style.display = isAssembly ? "" : "none";
+      $("lblPassed").style.display = isAssembly ? "" : "none";
+      $("lblDeleg").style.display = usesDeleg ? "" : "none";
+      $("lblStrong").style.display = usesDeleg ? "" : "none";
+    }
+
+    async function run() {
+      const btn = $("run");
+      btn.disabled = true; btn.textContent = "분석 중…";
+      $("result").innerHTML = ""; $("stats").innerHTML = ""; $("overview").style.display = "none";
+      const qs = new URLSearchParams({
+        source: $("source").value || "assembly",
+        age: $("age").value.trim(),
+        sample: $("sample").value,
+        only_passed: $("onlyPassed").checked,
+        with_delegation: $("withDeleg").checked,
+      });
+      try {
+        const res = await fetch("/api/analyze?" + qs);
+        if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+        lastData = await res.json();
+        render();
+      } catch (e) {
+        $("result").innerHTML = '<div class="msg">오류: ' + e.message + "</div>";
+      } finally {
+        btn.disabled = false; btn.textContent = "분석 실행";
+      }
+    }
+
+    function render() {
+      if (!lastData) return;
+      const onlyRec = $("onlyGap").checked, onlyStrong = $("onlyStrong").checked;
+      const isRec = (c) => c.action === "enact" || c.action === "amend";
+      const rows = lastData.candidates.filter((c) =>
+        (!onlyRec || isRec(c)) && (!onlyStrong || c.strong));
+      const enact = lastData.enact_count ?? 0, amend = lastData.amend_count ?? 0;
+      const strong = lastData.strong_gap_count || 0, ref = lastData.reference_count || 0;
+      // 전체 현황 통계 카드 (실제 분석 데이터 기반)
+      const card = (num, lbl, color) =>
+        `<div class="stat-card"><div class="num"${color ? ` style="color:${color}"` : ""}>${num}</div><div class="lbl">${lbl}</div></div>`;
+      $("statsRow").innerHTML =
+        card(enact + amend, "총 추천 (제정+개정)") +
+        card(enact, "제정 추천", "#c0392b") +
+        card(amend, "개정 추천", "#b9770e") +
+        card(strong, "고신뢰 (위임조항○)", "#2e7d32") +
+        card(ref, "참고 (관련 조례 후보)", "#5a6b7b");
+      $("overview").style.display = "";
+      $("stats").innerHTML =
+        `출처 <b>${lastData.source_label || ""}</b> · 검토 신호 <b>${lastData.total_scanned}</b>건` +
+        ` · 현재 표시 <b>${rows.length}</b>건`;
+      if (!rows.length) { $("result").innerHTML = '<div class="msg">표시할 항목이 없습니다.</div>'; return; }
+      // 권고 유형 라벨 (자치사무 필터 반영): 제정 / 개정 / 국가사무·제외 / 반영
+      const actionLabel = (c) => {
+        if (c.reference_only) return '<span class="ref">참고 (관련 조례 후보)</span>';
+        if (c.action === "enact") return '<span class="gap">제정 추천</span>';
+        if (c.action === "amend") return '<span class="weak">개정 추천</span>';
+        if (c.level === "gap") return '<span class="ref">국가사무·타지역 (제외)</span>';
+        return '<span class="ok">이미 반영됨</span>';
+      };
+      const esc = (s) => (s || "").replace(/</g, "&lt;");
+      const body = rows.map((c) => {
+        const s = c.signal;
+        const meta = Object.entries(s.meta || {})
+          .filter(([, v]) => v).map(([k, v]) => `${k}: ${esc(v)}`).join(" · ");
+        const link = s.link ? `<a href="${esc(s.link)}" target="_blank">원문</a>` : "";
+        const badge = c.strong ? '<span class="gap"> ⚖위임조항</span>'
+          : (c.has_delegation === false ? '<span class="score"> (위임 없음)</span>' : "");
+        const snip = (s.delegation_snippets || [])[0]
+          ? `<br><small class="score">근거: …${esc(s.delegation_snippets[0])}…</small>` : "";
+        const ords = c.matched_ordinances
+          .map((o) => {
+            const mark = o.linked ? " 🔗연계"
+              : (o.key_match ? " ✓핵심어" : (o.hits ? " ·부분" : ""));
+            return `<span class="tag">${esc(o.name)}<span class="score">${mark} (${o.score})</span></span>`;
+          })
+          .join(" ") || "—";
+        const levelLabel = actionLabel(c) + (c.reference_only ? "" : badge);
+        return `<tr>
+          <td>${levelLabel}<br><span class="score">최고 유사도 ${c.best_score}</span></td>
+          <td><span class="score">[${esc(s.source)}]</span> ${esc(s.title)}<br><small>${meta} ${s.date || ""} ${link}</small>${snip}</td>
+          <td>${(c.search_terms || []).join(", ")}</td>
+          <td>${ords}</td>
+        </tr>`;
+      }).join("");
+      $("result").innerHTML =
+        `<table><thead><tr><th>판정</th><th>신호 (출처·제목)</th><th>검색어</th><th>경기도 관련 조례 (유사도)</th></tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    $("run").addEventListener("click", run);
+    $("source").addEventListener("change", updateControls);
+    $("onlyGap").addEventListener("change", render);
+    $("onlyStrong").addEventListener("change", render);
+    loadSources();
+  </script>
+</body>
+</html>
