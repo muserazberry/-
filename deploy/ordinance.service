@@ -1,0 +1,16 @@
+[Unit]
+Description=경기도 조례 제·개정 추천 시스템 (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+# 아래 USERNAME 을 실제 리눅스 사용자명으로 바꾸세요 (예: ubuntu).
+User=USERNAME
+WorkingDirectory=/home/USERNAME/ordinance
+# .env 는 WorkingDirectory 에서 자동 로드되므로 별도 설정 불필요.
+ExecStart=/home/USERNAME/ordinance/.venv/bin/uvicorn app.api.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
