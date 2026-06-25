@@ -9,7 +9,8 @@ from app import config
 from app.analysis import delegation
 from app.clients import (budget_client, council_client, epeople_client,
                          law_client, lawmaking_client, rss_client, seminar_client)
-from app.clients.assembly_client import fetch_bills, normalize_bill
+from app.clients.assembly_client import AssemblyError, fetch_bills, normalize_bill
+from app.clients.epeople_client import EpeopleError
 from app.clients.rss_client import RSSError
 
 
@@ -196,6 +197,25 @@ def _seminar_signals(sample=100, **_) -> list[dict]:
     return signals
 
 
+def _demand_signals(sample=100, **_) -> list[dict]:
+    """민원 등 현안 요구: 국민신문고·국민생각함·국회도서관 세미나를 한 카테고리로
+    묶어, 현안 필요에 의한 조례 제·개정 후보로 처리한다 (참고용 아님).
+
+    세 출처는 독립 API라 하나가 실패해도 나머지로 결과를 채운다.
+    """
+    signals, errors = [], []
+    for fetch in (_minwon_signals, _idea_signals, _seminar_signals):
+        try:
+            signals += fetch(sample=sample)
+        except (EpeopleError, AssemblyError) as exc:
+            errors.append(str(exc))
+    if not signals and errors:
+        raise EpeopleError("; ".join(errors))
+    for sig in signals:
+        sig.pop("reference_only", None)  # 현안 요구는 실제 제·개정 추천 대상
+    return signals
+
+
 def _budget_signals(**_) -> list[dict]:
     """단계 ④: 경기도 예산·업무보고. 신규 사업은 조례 근거가 없는 경우가 많아 우선 검토."""
     if not config.BUDGET_FILE:
@@ -247,9 +267,7 @@ SOURCES = {
     "lawmaking": ("법제처 입법예고 (선제 대응)", _lawmaking_signals),
     "council": ("경기도의회 입법예고 (조례안 동향)", _council_signals),
     "budget": ("경기도 예산·업무보고 (신규·대규모)", _budget_signals),
-    "minwon": ("국민신문고 민원 질의응답 (참고)", _minwon_signals),
-    "idea": ("국민생각함 정책제안 (참고)", _idea_signals),
-    "seminar": ("국회도서관 세미나 자료 (정책 동향·참고)", _seminar_signals),
+    "demand": ("민원 등 현안 요구 (제·개정 추천)", _demand_signals),
     "policy": ("정부·경기도 정책/보도자료", _policy_signals),
 }
 
