@@ -6,31 +6,31 @@
   <link rel="icon" href="data:," />
   <title>경기도 조례 제·개정 추천</title>
   <style>
-    body { font-family: -apple-system, "Malgun Gothic", sans-serif; margin: 0; background: #f5f6f8; color: #1c2128; }
+    body { font-family: -apple-system, "Malgun Gothic", sans-serif; margin: 0; background: #f5f6f8; color: #1c2128; font-size: 16px; }
     header { background: #0b3d91; color: #fff; padding: 18px 24px; }
-    header h1 { margin: 0; font-size: 18px; }
-    header p { margin: 4px 0 0; font-size: 13px; opacity: .85; }
+    header h1 { margin: 0; font-size: 24px; }
+    header p { margin: 4px 0 0; font-size: 16px; opacity: .85; }
     .toolbar { padding: 14px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: #fff; border-bottom: 1px solid #e1e4e8; }
-    .toolbar label { font-size: 13px; }
-    button { background: #0b3d91; color: #fff; border: 0; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .toolbar label { font-size: 16px; }
+    button { background: #0b3d91; color: #fff; border: 0; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; }
     button:disabled { opacity: .5; cursor: default; }
-    .stats { padding: 0 24px 12px; font-size: 13px; color: #444; }
+    .stats { padding: 0 24px 12px; font-size: 16px; color: #444; }
     .stats b { color: #0b3d91; }
     .overview { padding: 16px 24px 4px; }
-    .overview h2 { margin: 0 0 10px; font-size: 14px; color: #1c2128; }
+    .overview h2 { margin: 0 0 10px; font-size: 18px; color: #1c2128; }
     .stats-row { display: flex; gap: 12px; flex-wrap: wrap; }
     .stat-card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 14px 18px; flex: 1; min-width: 120px; }
-    .stat-card .num { font-size: 26px; font-weight: 800; color: #0b3d91; line-height: 1.1; }
-    .stat-card .lbl { font-size: 12px; color: #5a6b7b; margin-top: 4px; }
-    table { width: calc(100% - 48px); margin: 0 24px 32px; border-collapse: collapse; background: #fff; font-size: 13px; }
-    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eef0f2; vertical-align: top; }
+    .stat-card .num { font-size: 34px; font-weight: 800; color: #0b3d91; line-height: 1.1; }
+    .stat-card .lbl { font-size: 15px; color: #5a6b7b; margin-top: 4px; }
+    table { width: calc(100% - 48px); margin: 0 24px 32px; border-collapse: collapse; background: #fff; font-size: 15px; }
+    th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #eef0f2; vertical-align: top; }
     th { background: #f0f2f5; position: sticky; top: 0; }
     .gap { color: #c0392b; font-weight: 600; }
     .weak { color: #b9770e; font-weight: 600; }
     .ref { color: #5a6b7b; font-weight: 600; }
     .ok { color: #2e7d32; }
-    .score { color: #555; font-size: 12px; }
-    .tag { display: inline-block; background: #eef; border-radius: 4px; padding: 1px 6px; margin: 1px 2px; font-size: 12px; }
+    .score { color: #555; font-size: 14px; }
+    .tag { display: inline-block; background: #eef; border-radius: 4px; padding: 2px 8px; margin: 1px 2px; font-size: 14px; }
     a { color: #0b3d91; }
     .msg { padding: 24px; color: #c0392b; }
   </style>
@@ -44,7 +44,7 @@
   <div class="toolbar">
     <label>출처 <select id="source"></select></label>
     <label id="lblAge">국회 대수 <input id="age" type="text" value="22" size="4" /></label>
-    <label>표본 수 <input id="sample" type="number" value="30" min="1" max="100" /></label>
+    <label>표본 수 <input id="sample" type="number" value="15" min="1" max="100" /></label>
     <label id="lblPassed"><input id="onlyPassed" type="checkbox" checked /> 통과 법률안만</label>
     <label id="lblDeleg"><input id="withDeleg" type="checkbox" checked /> 위임조항 분석</label>
     <label><input id="onlyGap" type="checkbox" /> 추천만(제정·개정)</label>
