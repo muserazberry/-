@@ -33,6 +33,15 @@
     .tag { display: inline-block; background: #eef; border-radius: 4px; padding: 2px 8px; margin: 1px 2px; font-size: 14px; }
     a { color: #0b3d91; }
     .msg { padding: 24px; color: #c0392b; }
+    .draft-btn { display: inline-block; margin-top: 8px; background: #0b3d91; color: #fff; border: 0; border-radius: 5px; padding: 5px 12px; font-size: 14px; cursor: pointer; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 50; }
+    .modal.show { display: flex; }
+    .modal-box { background: #fff; width: min(820px, 94vw); max-height: 88vh; border-radius: 10px; padding: 18px 22px; display: flex; flex-direction: column; box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+    .modal-box h3 { margin: 0 0 4px; font-size: 18px; color: #0b3d91; }
+    .modal-box .sub { font-size: 13px; color: #b9770e; margin-bottom: 10px; }
+    .modal-box textarea { flex: 1; min-height: 400px; width: 100%; box-sizing: border-box; font-family: Consolas, "D2Coding", monospace; font-size: 14px; line-height: 1.6; border: 1px solid #d0d7de; border-radius: 6px; padding: 12px; resize: vertical; }
+    .modal-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-ghost { background: #eef0f2; color: #1c2128; padding: 8px 16px; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -59,9 +68,22 @@
   <div class="stats" id="stats"></div>
   <div id="result"></div>
 
+  <div class="modal" id="draftModal">
+    <div class="modal-box">
+      <h3 id="draftTitle">조례안 초안</h3>
+      <div class="sub">⚠ 자동 생성된 서식 골격입니다. [   ]·○○ 부분을 검토·작성하세요.</div>
+      <textarea id="draftText" spellcheck="false"></textarea>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="draftCopy">복사</button>
+        <button class="btn-ghost" id="draftClose">닫기</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const $ = (id) => document.getElementById(id);
     let lastData = null;
+    let shownRows = [];   // 현재 화면에 표시 중인 후보 (초안 버튼이 인덱스로 참조)
 
     async function loadSources() {
       try {
@@ -112,6 +134,7 @@
       const isRec = (c) => c.action === "enact" || c.action === "amend";
       const rows = lastData.candidates.filter((c) =>
         (!onlyRec || isRec(c)) && (!onlyStrong || c.strong));
+      shownRows = rows;
       const enact = lastData.enact_count ?? 0, amend = lastData.amend_count ?? 0;
       const strong = lastData.strong_gap_count || 0, ref = lastData.reference_count || 0;
       // 전체 현황 통계 카드 (실제 분석 데이터 기반)
@@ -137,7 +160,7 @@
         return '<span class="ok">이미 반영됨</span>';
       };
       const esc = (s) => (s || "").replace(/</g, "&lt;");
-      const body = rows.map((c) => {
+      const body = rows.map((c, i) => {
         const s = c.signal;
         const meta = Object.entries(s.meta || {})
           .filter(([, v]) => v).map(([k, v]) => `${k}: ${esc(v)}`).join(" · ");
@@ -154,8 +177,10 @@
           })
           .join(" ") || "—";
         const levelLabel = actionLabel(c) + (c.reference_only ? "" : badge);
+        const draftBtn = isRec(c)
+          ? `<br><button class="draft-btn" data-i="${i}">📄 조례안 초안</button>` : "";
         return `<tr>
-          <td>${levelLabel}<br><span class="score">최고 유사도 ${c.best_score}</span></td>
+          <td>${levelLabel}<br><span class="score">최고 유사도 ${c.best_score}</span>${draftBtn}</td>
           <td><span class="score">[${esc(s.source)}]</span> ${esc(s.title)}<br><small>${meta} ${s.date || ""} ${link}</small>${snip}</td>
           <td>${(c.search_terms || []).join(", ")}</td>
           <td>${ords}</td>
@@ -165,10 +190,105 @@
         `<table><thead><tr><th>판정</th><th>신호 (출처·제목)</th><th>검색어</th><th>경기도 관련 조례 (유사도)</th></tr></thead><tbody>${body}</tbody></table>`;
     }
 
+    // ── 조례안 초안(서식 골격) 생성: 후보에 이미 있는 데이터만으로 클라이언트에서 작성 ──
+    // 가장 관련도 높은 조례명을 고른다 (연계 > 핵심어 > 부분일치 > 첫 후보).
+    function mainOrdinance(c) {
+      const ords = c.matched_ordinances || [];
+      if (!ords.length) return "";
+      const pick = ords.find((o) => o.linked) || ords.find((o) => o.key_match)
+        || ords.find((o) => o.hits) || ords[0];
+      return pick ? pick.name : "";
+    }
+
+    // action(enact=제정 / amend=개정)에 따라 표준 조례안 서식 골격을 문자열로 만든다.
+    function buildDraft(c) {
+      const s = c.signal;
+      const today = new Date().toISOString().slice(0, 10);
+      const terms = (c.search_terms || []).join(", ") || "—";
+      const head =
+        `※ 자동 생성 서식 골격 — [   ]·○○ 부분을 검토·작성하세요.\n` +
+        `─────────────────────────────────────\n` +
+        `· 근거 신호 : [${s.source}] ${s.title}\n` +
+        `· 핵심어    : ${terms}\n` +
+        `· 생성일    : ${today}\n` +
+        `─────────────────────────────────────\n\n`;
+
+      if (c.action === "amend") {
+        const target = mainOrdinance(c) || "○○○○ 조례";
+        const title = `경기도 ${target} 일부개정조례안`;
+        const text = head +
+          `${title}\n\n` +
+          `경기도 ${target} 일부를 다음과 같이 개정한다.\n\n` +
+          `제○조제○항 중 "[기존 문구]"를 "[개정 문구]"로 한다.\n` +
+          `제○조에 다음 각 호를 신설한다.\n` +
+          `  1. [신설 내용]\n` +
+          `  2. [신설 내용]\n\n` +
+          `■ 신·구조문대비표\n` +
+          `┌────────────────┬────────────────┐\n` +
+          `│ 현       행    │ 개   정   안   │\n` +
+          `├────────────────┼────────────────┤\n` +
+          `│ [기존 조문]    │ [개정 조문]    │\n` +
+          `└────────────────┴────────────────┘\n\n` +
+          `■ 제안이유\n` +
+          `  ${s.title}에 따라 ${terms} 관련 사항을 경기도 조례에 반영하기 위함.\n\n` +
+          `■ 주요내용\n` +
+          `  가. [개정 주요내용 1]\n` +
+          `  나. [개정 주요내용 2]\n\n` +
+          `   부      칙\n` +
+          `이 조례는 공포한 날부터 시행한다.\n`;
+        return { title, text };
+      }
+
+      // 제정안 (enact)
+      const subject = (c.search_terms || [])[0] || "○○ 지원";
+      const title = `경기도 ${subject}에 관한 조례안`;
+      const text = head +
+        `${title}\n\n` +
+        `제1조(목적) 이 조례는 ${subject}에 필요한 사항을 규정하여 [정책 목적]에 ` +
+        `이바지함을 목적으로 한다.\n\n` +
+        `제2조(정의) 이 조례에서 사용하는 용어의 뜻은 다음과 같다.\n` +
+        `  1. "[용어]"란 [정의]를 말한다.\n\n` +
+        `제3조(도지사의 책무) 경기도지사는 ${subject}을(를) 위한 시책을 ` +
+        `수립·시행하여야 한다.\n\n` +
+        `제4조(사업) ① 도지사는 다음 각 호의 사업을 추진할 수 있다.\n` +
+        `  1. [사업 1]\n` +
+        `  2. [사업 2]\n` +
+        `  ② 도지사는 제1항의 사업에 필요한 예산을 지원할 수 있다.\n\n` +
+        `제5조(시행규칙) 이 조례의 시행에 필요한 사항은 규칙으로 정한다.\n\n` +
+        `■ 제안이유\n` +
+        `  ${s.title} 등 정책 동향에 대응하여 ${subject} 근거를 마련하기 위함.\n\n` +
+        `   부      칙\n` +
+        `이 조례는 공포한 날부터 시행한다.\n`;
+      return { title, text };
+    }
+
+    function openDraft(i) {
+      const c = shownRows[i];
+      if (!c) return;
+      const d = buildDraft(c);
+      $("draftTitle").textContent = d.title;
+      $("draftText").value = d.text;
+      $("draftModal").classList.add("show");
+    }
+    const closeDraft = () => $("draftModal").classList.remove("show");
+
     $("run").addEventListener("click", run);
     $("source").addEventListener("change", updateControls);
     $("onlyGap").addEventListener("change", render);
     $("onlyStrong").addEventListener("change", render);
+    $("result").addEventListener("click", (e) => {
+      const btn = e.target.closest(".draft-btn");
+      if (btn) openDraft(+btn.dataset.i);
+    });
+    $("draftClose").addEventListener("click", closeDraft);
+    $("draftModal").addEventListener("click", (e) => {
+      if (e.target === $("draftModal")) closeDraft();
+    });
+    $("draftCopy").addEventListener("click", () => {
+      navigator.clipboard.writeText($("draftText").value);
+      $("draftCopy").textContent = "복사됨 ✓";
+      setTimeout(() => ($("draftCopy").textContent = "복사"), 1500);
+    });
     loadSources();
   </script>
 </body>
