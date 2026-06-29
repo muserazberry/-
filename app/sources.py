@@ -6,7 +6,7 @@ signal = {"source", "title", "summary", "link", "date", "meta"}
 import re
 
 from app import config
-from app.analysis import delegation
+from app.analysis import delegation, relevance
 from app.clients import (budget_client, council_client, epeople_client,
                          law_client, lawmaking_client, rss_client, seminar_client)
 from app.clients.assembly_client import AssemblyError, fetch_bills, normalize_bill
@@ -211,6 +211,8 @@ def _demand_signals(sample=100, **_) -> list[dict]:
             errors.append(str(exc))
     if not signals and errors:
         raise EpeopleError("; ".join(errors))
+    # 인사·행사 등 비입법 제목은 추천 노이즈라 제외한다.
+    signals = [s for s in signals if relevance.is_legislative(s["title"])]
     for sig in signals:
         sig.pop("reference_only", None)  # 현안 요구는 실제 제·개정 추천 대상
     return signals
@@ -262,7 +264,9 @@ def _policy_signals(sample=100, **_) -> list[dict]:
     signals = []
     for url in config.POLICY_FEEDS:
         for item in rss_client.fetch(url, limit=min(per, config.RSS_ITEM_LIMIT)):
-            signals.append({**item, "meta": {}})
+            # 인사·행사 등 비입법 보도자료 제목은 추천 노이즈라 제외한다.
+            if relevance.is_legislative(item.get("title", "")):
+                signals.append({**item, "meta": {}})
     return signals[:sample]
 
 
