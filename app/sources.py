@@ -250,15 +250,20 @@ def _budget_signals(**_) -> list[dict]:
     return signals
 
 
-def _policy_signals(**_) -> list[dict]:
-    """단계 ④⑤: 정부·경기도 정책/보도자료 (RSS 피드)."""
+def _policy_signals(sample=100, **_) -> list[dict]:
+    """단계 ④⑤: 정부 정책브리핑·각 부처 보도자료 (RSS 피드).
+
+    중앙정부의 새 정책·사업 신호를 받아 관련 경기도 조례 제·개정을 추천한다.
+    """
     if not config.POLICY_FEEDS:
         raise RSSError("POLICY_FEEDS가 설정되지 않았습니다 (.env에 RSS 피드 URL 입력).")
+    # 표본 수를 피드 수로 나눠 각 피드가 고르게 반영되도록 한다.
+    per = max(1, -(-sample // len(config.POLICY_FEEDS)))
     signals = []
     for url in config.POLICY_FEEDS:
-        for item in rss_client.fetch(url, limit=config.RSS_ITEM_LIMIT):
+        for item in rss_client.fetch(url, limit=min(per, config.RSS_ITEM_LIMIT)):
             signals.append({**item, "meta": {}})
-    return signals
+    return signals[:sample]
 
 
 # source 키 → (표시명, 신호 생성 함수)
@@ -268,7 +273,7 @@ SOURCES = {
     "council": ("경기도의회 입법예고 (조례안 동향)", _council_signals),
     "budget": ("경기도 예산·업무보고 (신규·대규모)", _budget_signals),
     "demand": ("민원 등 현안 요구 (제·개정 추천)", _demand_signals),
-    "policy": ("정부·경기도 정책/보도자료", _policy_signals),
+    "policy": ("정부 정책브리핑·부처 보도자료 (제·개정 추천)", _policy_signals),
 }
 
 
