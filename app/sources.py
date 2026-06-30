@@ -113,28 +113,6 @@ def _lawmaking_signals(sample=100, with_delegation=True, **_) -> list[dict]:
     return signals
 
 
-def _council_signals(sample=100, **_) -> list[dict]:
-    """경기도의회 입법예고(조례안). 도 차원 조례 제·개정 동향을 직접 포착한다.
-
-    제목이 곧 조례안명이라 기존 경기도 조례와의 매칭이 정확하다
-    (일부개정조례안 → 기존 조례 / 제정 조례안 → 신규).
-    """
-    rows = council_client.fetch_preannouncements(limit=min(sample, config.COUNCIL_LIMIT))
-    signals = []
-    for r in rows:
-        period = " ~ ".join(x for x in (r.get("start"), r.get("end")) if x)
-        signals.append({
-            "source": "경기도의회 입법예고",
-            "title": r["title"],
-            "summary": "",
-            "link": r.get("link", ""),
-            "date": r.get("start", ""),
-            "meta": {"의견마감": r.get("end", ""), "예고기간": period},
-            "has_delegation": None,
-        })
-    return signals
-
-
 def _minwon_signals(sample=100, **_) -> list[dict]:
     """국민신문고 민원 질의응답(전국). 도민 수요 참고용 — 소관기관 태그로 분류."""
     rows = epeople_client.fetch_minwon(limit=min(sample, config.EPEOPLE_LIMIT))
@@ -274,7 +252,6 @@ def _policy_signals(sample=100, **_) -> list[dict]:
 SOURCES = {
     "assembly": ("국회 통과 법률안", _assembly_signals),
     "lawmaking": ("법제처 입법예고 (선제 대응)", _lawmaking_signals),
-    "council": ("경기도의회 입법예고 (조례안 동향)", _council_signals),
     "budget": ("경기도 예산·업무보고 (신규·대규모)", _budget_signals),
     "demand": ("민원 등 현안 요구 (제·개정 추천)", _demand_signals),
     "policy": ("정부 정책브리핑·부처 보도자료 (제·개정 추천)", _policy_signals),
