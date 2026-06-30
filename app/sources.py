@@ -7,8 +7,8 @@ import re
 
 from app import config
 from app.analysis import delegation, relevance
-from app.clients import (budget_client, council_client, epeople_client,
-                         law_client, lawmaking_client, rss_client, seminar_client)
+from app.clients import (council_client, epeople_client, law_client,
+                         lawmaking_client, rss_client, seminar_client)
 from app.clients.assembly_client import AssemblyError, fetch_bills, normalize_bill
 from app.clients.epeople_client import EpeopleError
 from app.clients.rss_client import RSSError
@@ -196,40 +196,6 @@ def _demand_signals(sample=100, **_) -> list[dict]:
     return signals
 
 
-def _budget_signals(**_) -> list[dict]:
-    """단계 ④: 경기도 예산·업무보고. 신규 사업은 조례 근거가 없는 경우가 많아 우선 검토."""
-    if not config.BUDGET_FILE:
-        raise budget_client.BudgetError("BUDGET_FILE이 설정되지 않았습니다 (.env에 세출예산 CSV 경로 입력).")
-    rows = budget_client.load(
-        config.BUDGET_FILE, only_flagged=config.BUDGET_ONLY_FLAGGED,
-        top_n=config.BUDGET_TOP_N, inc_pct=config.BUDGET_INCREASE_PCT)
-    signals = []
-    for r in rows:
-        tags = []
-        if r["is_new"]:
-            tags.append("신규")
-        if r["large"]:
-            tags.append("대규모")
-        if r["increased"]:
-            tags.append(f"증액 {round(r['delta_pct'] * 100)}%")
-        meta = {"부서": r["dept"], "예산구분": "·".join(tags) or "유지"}
-        if r["amount"] is not None:
-            meta["예산액"] = f"{int(r['amount']):,}"
-        signals.append({
-            "source": "경기도 예산·업무보고",
-            "title": r["name"],
-            "summary": "",
-            "link": "",
-            "date": "",
-            "meta": meta,
-            "has_delegation": None,
-            "is_new_program": r["is_new"],
-            # 사업명(세부사업명) ↔ 조례명 매칭은 표기 특성상 불확실 → 참고용으로만 표시
-            "reference_only": True,
-        })
-    return signals
-
-
 def _policy_signals(sample=100, **_) -> list[dict]:
     """단계 ④⑤: 정부 정책브리핑·각 부처 보도자료 (RSS 피드).
 
@@ -252,7 +218,6 @@ def _policy_signals(sample=100, **_) -> list[dict]:
 SOURCES = {
     "assembly": ("국회 통과 법률안", _assembly_signals),
     "lawmaking": ("법제처 입법예고 (선제 대응)", _lawmaking_signals),
-    "budget": ("경기도 예산·업무보고 (신규·대규모)", _budget_signals),
     "demand": ("민원 등 현안 요구 (제·개정 추천)", _demand_signals),
     "policy": ("정부 정책브리핑·부처 보도자료 (제·개정 추천)", _policy_signals),
 }

@@ -6,7 +6,6 @@ from fastapi.responses import FileResponse
 
 from app.analysis.gap_finder import analyze
 from app.clients.assembly_client import AssemblyError
-from app.clients.budget_client import BudgetError
 from app.clients.epeople_client import EpeopleError
 from app.clients.law_client import LawError
 from app.clients.lawmaking_client import LawmakingError
@@ -39,8 +38,6 @@ def api_analyze(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except AssemblyError as exc:
         raise HTTPException(status_code=502, detail=f"국회 API 오류: {exc}") from exc
-    except BudgetError as exc:
-        raise HTTPException(status_code=400, detail=f"예산 자료 오류: {exc}") from exc
     except EpeopleError as exc:
         raise HTTPException(status_code=502, detail=f"국민신문고 수집 오류: {exc}") from exc
     except RSSError as exc:

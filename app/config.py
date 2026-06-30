@@ -42,13 +42,6 @@ EPEOPLE_LIMIT = int(os.getenv("EPEOPLE_LIMIT", "60"))
 # 경기도 자치법규 필터링 기준 (지자체기관명에 포함되는 문자열)
 GYEONGGI_ORG = "경기도"
 
-# 경기도 예산·업무보고 (세출예산 CSV) — 신규/대규모/증액 사업을 조례와 대조.
-BUDGET_FILE = os.getenv("BUDGET_FILE", "")
-BUDGET_TOP_N = int(os.getenv("BUDGET_TOP_N", "30"))          # 금액 상위 N개 = '대규모'
-BUDGET_INCREASE_PCT = float(os.getenv("BUDGET_INCREASE_PCT", "0.5"))  # 전년 대비 +50% = '증액'
-# True면 신규·대규모·증액 사업만 추린다 (검토 대상 집중).
-BUDGET_ONLY_FLAGGED = os.getenv("BUDGET_ONLY_FLAGGED", "true").lower() != "false"
-
 # 정책/보도자료 RSS 피드 URL (쉼표 구분). 기본값: 정부 정책브리핑·각 부처 보도자료(korea.kr).
 # 중앙정부 정책 신호로 경기도 조례 제·개정을 추천한다 (경기도 자체 피드는 제외).
 _DEFAULT_POLICY_FEEDS = (
