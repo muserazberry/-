@@ -55,7 +55,11 @@ _DEFAULT_POLICY_FEEDS = (
     "https://www.korea.kr/rss/policy.xml,"        # 정책뉴스(정부 브리핑)
     "https://www.korea.kr/rss/pressrelease.xml"   # 각 부처 보도자료
 )
-POLICY_FEEDS = [u.strip() for u in (os.getenv("POLICY_FEEDS") or _DEFAULT_POLICY_FEEDS).split(",") if u.strip()]
+def _parse_feeds(raw: str) -> list[str]:
+    return [u.strip() for u in (raw or "").split(",") if u.strip()]
+
+# .env의 POLICY_FEEDS가 비었거나 공백·쉼표만 있어도(파싱 결과 빈 목록) 기본값으로 폴백한다.
+POLICY_FEEDS = _parse_feeds(os.getenv("POLICY_FEEDS")) or _parse_feeds(_DEFAULT_POLICY_FEEDS)
 RSS_ITEM_LIMIT = int(os.getenv("RSS_ITEM_LIMIT", "40"))
 
 REQUEST_TIMEOUT = 20.0
