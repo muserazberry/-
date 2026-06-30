@@ -137,6 +137,7 @@
       shownRows = rows;
       const enact = lastData.enact_count ?? 0, amend = lastData.amend_count ?? 0;
       const strong = lastData.strong_gap_count || 0, ref = lastData.reference_count || 0;
+      const inprog = lastData.in_progress_count || 0;
       // 전체 현황 통계 카드 (실제 분석 데이터 기반)
       const card = (num, lbl, color) =>
         `<div class="stat-card"><div class="num"${color ? ` style="color:${color}"` : ""}>${num}</div><div class="lbl">${lbl}</div></div>`;
@@ -145,6 +146,7 @@
         card(enact, "제정 추천", "#c0392b") +
         card(amend, "개정 추천", "#b9770e") +
         card(strong, "고신뢰 (위임조항○)", "#2e7d32") +
+        card(inprog, "입법예고 진행 중 (중복)", "#5a6b7b") +
         card(ref, "참고 (관련 조례 후보)", "#5a6b7b");
       $("overview").style.display = "";
       $("stats").innerHTML =
@@ -153,6 +155,7 @@
       if (!rows.length) { $("result").innerHTML = '<div class="msg">표시할 항목이 없습니다.</div>'; return; }
       // 권고 유형 라벨 (자치사무 필터 반영): 제정 / 개정 / 국가사무·제외 / 반영
       const actionLabel = (c) => {
+        if (c.in_progress) return '<span class="ref">⏳ 입법예고 진행 중</span>';
         if (c.reference_only) return '<span class="ref">참고 (관련 조례 후보)</span>';
         if (c.action === "enact") return '<span class="gap">제정 추천</span>';
         if (c.action === "amend") return '<span class="weak">개정 추천</span>';

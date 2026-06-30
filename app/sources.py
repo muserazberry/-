@@ -285,3 +285,15 @@ def collect(source: str, **opts) -> list[dict]:
     if source not in SOURCES:
         raise ValueError(f"알 수 없는 출처: {source}")
     return SOURCES[source][1](**opts)
+
+
+def council_in_progress_titles(limit: int = 50) -> list[str]:
+    """경기도의회가 이미 입법예고한 조례안 제목 (중복 추천 방지용).
+
+    중복 판정 보조 신호라, 의회 사이트가 막혀도 분석을 멈추지 않도록 실패 시 빈 목록.
+    """
+    try:
+        rows = council_client.fetch_preannouncements(limit=min(limit, config.COUNCIL_LIMIT))
+    except council_client.CouncilError:
+        return []
+    return [r["title"] for r in rows if r.get("title")]

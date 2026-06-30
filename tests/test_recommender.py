@@ -63,6 +63,26 @@ class RecommendTest(unittest.TestCase):
         self.assertEqual(out["candidates"][0]["action"], "enact")
         self.assertEqual(out["enact_count"], 1)
 
+    def test_in_progress_excluded_from_recommendation(self):
+        # 같은 주제가 경기도의회 입법예고 중이면 추천하지 않고 '진행 중'으로 표시
+        out = recommender.recommend(
+            [self._sig("청년 기본법", has_delegation=True)],
+            in_progress=["경기도 청년 기본 조례 일부개정조례안"])
+        c = out["candidates"][0]
+        self.assertTrue(c["in_progress"])
+        self.assertEqual(c["action"], "none")
+        self.assertEqual(out["enact_count"], 0)
+        self.assertEqual(out["in_progress_count"], 1)
+        self.assertFalse(c["gap"])
+
+    def test_unrelated_in_progress_does_not_suppress(self):
+        # 무관한 입법예고가 있어도 정상 추천은 유지된다
+        out = recommender.recommend(
+            [self._sig("청년 기본법", has_delegation=True)],
+            in_progress=["경기도 상수도 급수 조례 일부개정조례안"])
+        self.assertFalse(out["candidates"][0]["in_progress"])
+        self.assertEqual(out["enact_count"], 1)
+
 
 class ActionTest(unittest.TestCase):
     """권고 유형(_action) 순수 로직 테스트 (네트워크 없음)."""
