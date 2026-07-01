@@ -14,7 +14,7 @@ from app.sources import SOURCES
 
 WEB_DIR = Path(__file__).resolve().parents[2] / "web"
 
-app = FastAPI(title="경기도 조례 제·개정 추천 시스템", version="0.1.0")
+app = FastAPI(title="경기도 조례 제·개정 추천 시스템 (GO-LENS)", version="0.1.0")
 
 
 @app.get("/api/sources")
