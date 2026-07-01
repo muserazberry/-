@@ -2,6 +2,7 @@
 
 핵심 휴리스틱:
 - 조례 위임조항이 '없음(False)'으로 확인된 법은 국가사무로 보고 제외한다.
+- 중앙정부 조직·직제 전용(정부조직·○○부와 그 소속기관 직제 등)은 자치사무가 아니라 제외한다.
 - 다른 지역 전용 특별법(제주·세종·강원·전북특별자치도 등)은 경기도와 무관해 제외한다.
 - 위임조항이 '있음(True)/확인불가(None)'면 자치사무 가능성이 있어 후보로 남긴다.
 """
@@ -11,10 +12,16 @@ import re
 _OTHER_REGION = re.compile(
     r"(제주특별자치도|세종특별자치시|강원특별자치도|전북특별자치도)")
 
+# 중앙정부 조직·직제 전용 (경기도 자치사무가 아님) — 정부조직·직제령 등
+_NATIONAL_ONLY = re.compile(r"(직제|정부조직|그\s*소속기관)")
+
 
 def is_local_matter(title: str, has_delegation: bool | None) -> bool:
     """제목·위임조항으로 경기도 자치사무(조례 제정) 대상일 가능성을 판정한다."""
-    if _OTHER_REGION.search(title or ""):
+    title = title or ""
+    if _OTHER_REGION.search(title):
+        return False
+    if _NATIONAL_ONLY.search(title):
         return False
     if has_delegation is False:
         return False

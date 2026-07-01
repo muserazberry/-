@@ -17,17 +17,18 @@ _DELEG_RANK = {True: 0, None: 1, False: 2}
 def _action(level: str, ref_only: bool, has_delegation: bool | None, title: str) -> str:
     """후보를 권고 유형으로 분류한다: enact(제정) / amend(개정) / none(제외·반영).
 
+    - 국가사무·타지역·중앙정부 직제 → 제외(none)
     - gap(관련 조례 없음) + 자치사무 → 제정 추천(enact)
-    - gap 이지만 국가사무·타지역 → 제외(none)
-    - weak(관련 조례 있음, 부분 반영) → 개정 추천(amend)
+    - weak(관련 조례 있음, 부분 반영) + 자치사무 → 개정 추천(amend)
     - reflected/참고용 → none
     """
     if ref_only or level == "reflected":
         return "none"
+    if not jurisdiction.is_local_matter(title, has_delegation):
+        return "none"  # 국가사무·타지역·중앙정부 직제
     if level == "weak":
         return "amend"
-    # level == "gap"
-    return "enact" if jurisdiction.is_local_matter(title, has_delegation) else "none"
+    return "enact"  # level == "gap"
 
 
 def _ordinances_for(terms: list[str], linked: list[dict],

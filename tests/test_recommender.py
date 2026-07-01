@@ -106,6 +106,17 @@ class ActionTest(unittest.TestCase):
         self.assertEqual(
             recommender._action("gap", False, True, "제주특별자치도 설치 특별법"), "none")
 
+    def test_national_directive_is_none(self):
+        # 중앙정부 조직·직제령은 위임조항 미확인(None)이어도 자치사무가 아님
+        self.assertEqual(
+            recommender._action(
+                "gap", False, None, "과학기술정보통신부와 그 소속기관 직제"), "none")
+
+    def test_national_directive_not_amended_even_if_weak(self):
+        # 직제령이 조례명과 부분 일치(weak)해도 개정 추천 대상이 아니다
+        self.assertEqual(
+            recommender._action("weak", False, None, "행정안전부 직제 일부개정령"), "none")
+
 
 if __name__ == "__main__":
     unittest.main()
